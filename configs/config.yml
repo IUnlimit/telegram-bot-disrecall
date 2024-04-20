@@ -1,0 +1,29 @@
+# 日志项配置
+log:
+  # 是否每次启动新建log文件
+  force-new: false
+  # 日志等级
+  #   trace debug info warn error
+  level: "debug"
+  # 日志存活时间，到期新建log文件
+  aging: 24h
+  # 是否开启控制台颜色
+  colorful: true
+
+# API 配置
+api:
+  # 监听地址
+  host: "0.0.0.0"
+  # 绑定端口
+  port: 8080
+
+# 存储下载文件的根路径
+root-dir: './files'
+
+# Telegram Bot 配置
+telegram-bot:
+  debug: false
+  # 默认为官方节点, 上传下载文件受限严重, 有需求可以换成自己的节点
+  # 切换前请访问 API 下线 Bot https://api.telegram.org/bot{token}/logOut
+  endpoint: 'https://api.telegram.org/bot%s/%s'
+  token: ''
