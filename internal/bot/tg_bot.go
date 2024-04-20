@@ -49,6 +49,7 @@ func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, call
 	if strings.HasPrefix(file.FilePath, "/") {
 		// 绝对路径要去 token
 		b.SendMessage(fmt.Sprintf("文件被本地服务器成功保存到: %s", replaceToken(file.FilePath)), message)
+		callback(file.FilePath)
 		return
 	}
 
@@ -66,10 +67,10 @@ func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, call
 		_ = os.Remove(filePath)
 		return
 	}
-	callback(filePath)
 
 	log.Infof("File %s download success", filePath)
 	b.SendMessage(fmt.Sprintf("文件成功下载到: %s", filePath), message)
+	callback(filePath)
 }
 
 func replaceToken(path string) string {
