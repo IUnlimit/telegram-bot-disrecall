@@ -2,10 +2,12 @@ package tool
 
 import (
 	"io"
-	"log"
+
 	"net/http"
 	"os"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // DownloadFile @return path, error
@@ -18,7 +20,7 @@ func DownloadFile(url string, path string) (string, error) {
 
 	// 判断文件是否存在
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		log.Println("检测到重复文件, 自动增加文件后缀")
+		log.Debug("检测到重复文件, 自动增加文件后缀")
 		return DownloadFile(url, path+".rp")
 	}
 

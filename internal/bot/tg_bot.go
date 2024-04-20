@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -35,18 +36,19 @@ func (b *BasicTGBot) SendMessage(text string, message *tgbotapi.Message) {
 	b.API.Send(msg)
 }
 
-func (b *BasicTGBot) DownloadFile(message *tgbotapi.Message, fileID string) {
+func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, callback func(filePath string)) {
 	// 获取文件信息
 	fileConfig := tgbotapi.FileConfig{FileID: fileID}
 	file, err := b.API.GetFile(fileConfig)
 	if err != nil {
-		log.Error("文件信息获取失败:", err)
+		log.Errorf("Fetch file info failed: %v", err)
 		return
 	}
 
 	// 判断是否为本地服务器
 	if strings.HasPrefix(file.FilePath, "/") {
-		b.SendMessage("文件被本地服务器成功保存到: "+file.FilePath, message)
+		// 绝对路径要去 token
+		b.SendMessage(fmt.Sprintf("文件被本地服务器成功保存到: %s", replaceToken(file.FilePath)), message)
 		return
 	}
 
@@ -60,11 +62,17 @@ func (b *BasicTGBot) DownloadFile(message *tgbotapi.Message, fileID string) {
 	// 下载文件
 	filePath, err = tool.DownloadFile(fileDirectURL, filePath)
 	if err != nil {
-		log.Println("文件 "+fileDirectURL+" 下载失败:", err)
+		log.Errorf("File %s download failed: %v", fileDirectURL, err)
 		_ = os.Remove(filePath)
 		return
 	}
+	callback(filePath)
 
-	log.Println("文件" + filePath + "成功下载!")
-	b.SendMessage("文件成功下载到 "+filePath, message)
+	log.Infof("File %s download success", filePath)
+	b.SendMessage(fmt.Sprintf("文件成功下载到: %s", filePath), message)
+}
+
+func replaceToken(path string) string {
+	re := regexp.MustCompile(`/\d+:[^/]+/`)
+	return re.ReplaceAllString(path, "/<token>/")
 }
