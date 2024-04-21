@@ -9,9 +9,9 @@ import (
 
 // gorm dto
 
-type FileType string
-
 const (
+	// Text 纯文本
+	Text     FileType = "Text"
 	Photo    FileType = "Photo"
 	Voice    FileType = "Voice"
 	Video    FileType = "Video"
@@ -25,25 +25,52 @@ type FileModel struct {
 	// 转发者 UserId
 	ForwardUserID int64 `gorm:"index"`
 	// 原消息发送时间 (同一 Date 的消息被认为是同一批消息)
-	ForwardDate int64
+	ForwardDate int64 `gorm:"not null"`
 	// 转发者 UserName
-	ForwardUserName string
+	ForwardUserName string `gorm:"default:''"`
 	// 统一批次消息中由 From 用户发送的文本
-	Text string
+	Text string `gorm:"default:''"`
 	// 统一批次消息中的标题文本
-	Caption string
+	Caption string `gorm:"default:''"`
 	// 转发消息的原 json 格式数据
-	Json string
+	Json string `gorm:"default:'{}'"`
 
 	// 文件类型 nullable
-	FileType FileType
+	FileType FileType `gorm:"default:''"`
 	// 文件储存路径 nullable
-	FilePath string
+	FilePath string `gorm:"default:''"`
+	// 文件大小
+	FileSize int64 `gorm:"default:0"`
+	// 文件ID
+	FileID string `gorm:"default:''"`
 	// PhotoPath    datatypes.JSONSlice[string]
 	// VoicePath    datatypes.JSONSlice[string] `gorm:"not null"`
 	// VideoPath    datatypes.JSONSlice[string] `gorm:"not null"`
 	// DocumentPath datatypes.JSONSlice[string] `gorm:"not null"`
 }
+
+func (m *FileModel) IsValid() bool {
+	switch m.FileType {
+	case "":
+		{
+			return false
+		}
+	case Text:
+		{
+			return m.Text != ""
+		}
+	case Photo:
+	case Voice:
+	case Video:
+	case Document:
+		{
+			return m.FilePath != "" && m.FileSize != 0
+		}
+	}
+	return true
+}
+
+type FileType string
 
 func (ft FileType) Value() (driver.Value, error) {
 	return string(ft), nil
