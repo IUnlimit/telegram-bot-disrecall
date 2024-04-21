@@ -2,7 +2,8 @@ package disrecall
 
 import (
 	"encoding/json"
-	"sync"
+	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/kylelemons/godebug/pretty"
@@ -24,30 +25,51 @@ func Listen() {
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
-	updates := basicBot.API.GetUpdatesChan(u)
-	for update := range updates {
-		go handle(basicBot, &update)
+
+	for {
+		updates, err := basicBot.API.GetUpdates(u)
+		if err != nil {
+			log.Errorf("Failed to get updates, retrying in 3 seconds...: %v", err)
+			time.Sleep(time.Second * 3)
+			continue
+		}
+
+		current := int32(0)
+		size := len(updates)
+		for _, up := range updates {
+			go func(update *tgbotapi.Update, config *tgbotapi.UpdateConfig) {
+				if update.UpdateID >= config.Offset {
+					config.Offset = update.UpdateID + 1
+					handle(&current, size, basicBot, update)
+				}
+			}(&up, &u)
+		}
 	}
 }
 
-func handle(bot *bot.BasicTGBot, update *tgbotapi.Update) {
+func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Update) {
+	if update.CallbackQuery != nil {
+		bot.OnCommandCallback(update.CallbackQuery, basic)
+		return
+	}
+
 	// ignore any non-Message updates
 	if update.Message == nil {
 		return
 	}
+
+	if update.Message.IsCommand() {
+		bot.OnCommand(update.Message, basic)
+		return
+	}
+
 	log.Debugf("[%s] %v", update.Message.From.UserName, pretty.Sprint(update.Message))
 
-	if update.Message.Text == "/start" {
-		bot.SendMessage("您好，我是防撤回机器人，您可将需要保存的 文本/图片/语音/视频/文件 转发至此机器人，机器人将会自动将文件存档到本地服务器。若原消息被撤回，则机器人会将存档文件重新上传至该聊天", update.Message)
-		return
-	}
-
 	if update.Message.ForwardDate == 0 {
-		bot.SendMessage("未获取到转发消息数据!", update.Message)
+		basic.SendMessage("未获取到转发消息数据!", update.Message)
 		return
 	}
 
-	var wg sync.WaitGroup
 	message := update.Message
 	bytes, err := json.Marshal(&message)
 	if err != nil {
@@ -68,61 +90,50 @@ func handle(bot *bot.BasicTGBot, update *tgbotapi.Update) {
 		Json:            string(bytes),
 	}
 
-	// 一条消息只包含一个副文本类型, 所以其实不用加协程 & 可以直接用 else if
-	if message.Photo != nil {
-		wg.Add(1)
-		go func(message *tgbotapi.Message, fileModel *model.FileModel) {
-			defer wg.Done()
-			// 获取最后一张 (最清晰) 图片的 file_id
-			photo := (message.Photo)[len(message.Photo)-1]
-			fileID := photo.FileID
-			bot.DownloadFile(fileID, message, func(filePath string) {
+	fileID, fileType := FindFileIDWithType(message)
+	if fileType == "" {
+		if message.Text == "" {
+			basic.SendMessage("当前消息类型不支持储存!", message)
+			return
+		}
+		fileType = model.Text
+		fileModel.Text = message.Text
+	}
+
+	go func(message *tgbotapi.Message, fileModel *model.FileModel) {
+
+		if fileType != model.Text {
+			basic.DownloadFile(fileID, message, func(filePath string, fileSize int64) {
 				fileModel.FilePath = filePath
-				fileModel.FileType = model.Photo
+				fileModel.FileType = fileType
+				fileModel.FileSize = fileSize
+				fileModel.FileID = fileID
 			})
-		}(message, fileModel)
+		}
+
+		err = db.Insert(fileModel)
+		if err != nil {
+			log.Errorf("Database insert error: %v", err)
+			return
+		}
+
+		atomic.AddInt32(current, 1)
+		basic.SendMessage(fmt.Sprintf("Batch(%d): 消息已录入数据库 [%d/%d]", message.ForwardDate, *current, size), message)
+	}(message, fileModel)
+}
+
+func FindFileIDWithType(message *tgbotapi.Message) (string, model.FileType) {
+	if message.Photo != nil {
+		photo := (message.Photo)[len(message.Photo)-1]
+		return photo.FileID, model.Photo
 	}
 
 	if message.Voice != nil {
-		wg.Add(1)
-		go func(message *tgbotapi.Message, fileModel *model.FileModel) {
-			defer wg.Done()
-			fileID := message.Voice.FileID
-			bot.DownloadFile(fileID, message, func(filePath string) {
-				fileModel.FilePath = filePath
-				fileModel.FileType = model.Voice
-			})
-		}(message, fileModel)
+		return message.Voice.FileID, model.Voice
+	} else if message.Video != nil {
+		return message.Video.FileID, model.Video
+	} else if message.Document != nil {
+		return message.Document.FileID, model.Document
 	}
-
-	if message.Video != nil {
-		wg.Add(1)
-		go func(message *tgbotapi.Message, fileModel *model.FileModel) {
-			defer wg.Done()
-			fileID := message.Video.FileID
-			bot.DownloadFile(fileID, message, func(filePath string) {
-				fileModel.FilePath = filePath
-				fileModel.FileType = model.Video
-			})
-		}(message, fileModel)
-	}
-
-	if message.Document != nil {
-		wg.Add(1)
-		go func(message *tgbotapi.Message, fileModel *model.FileModel) {
-			defer wg.Done()
-			fileID := message.Document.FileID
-			bot.DownloadFile(fileID, message, func(filePath string) {
-				fileModel.FilePath = filePath
-				fileModel.FileType = model.Document
-			})
-		}(message, fileModel)
-	}
-
-	wg.Wait()
-
-	err = db.Insert(fileModel)
-	if err != nil {
-		log.Errorf("Database insert error: %v", err)
-	}
+	return "", ""
 }
