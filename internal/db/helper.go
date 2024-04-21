@@ -13,3 +13,13 @@ func Insert(fileModel *model.FileModel) error {
 	log.Debugf("RowsAffected: %d", result.RowsAffected)
 	return nil
 }
+
+func QueryAll() ([]*model.FileModel, error) {
+	fileModels := make([]*model.FileModel, 0)
+	result := Instance.Find(&fileModels)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	log.Debugf("Query %d records", result.RowsAffected)
+	return fileModels, nil
+}
