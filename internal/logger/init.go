@@ -35,6 +35,7 @@ func initLog() {
 
 	levels := GetLogLevel(config.Log.Level)
 	log.SetLevel(levels[0]) // hook levels doesn't work
+	log.SetReportCaller(true)
 	consoleFormatter := LogFormat{
 		Prefix:      Prefix,
 		EnableColor: config.Log.Colorful,

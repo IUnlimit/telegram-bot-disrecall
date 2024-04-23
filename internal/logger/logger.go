@@ -182,8 +182,13 @@ func (f LogFormat) Format(entry *logrus.Entry) ([]byte, error) {
 		_, _ = buf.WriteString(strings.ToUpper(entry.Level.String()))
 		_, _ = buf.WriteString("] [")
 		_, _ = buf.WriteString(entry.Time.Format("2006-01-02 15:04:05"))
-		_, _ = buf.WriteString("]: ")
-		// TODO 显示caller行号
+		_, _ = buf.WriteString("]")
+		if entry.Caller != nil {
+			_, _ = buf.WriteString(fmt.Sprintf(" %s:%d",
+				entry.Caller.File[strings.LastIndex(entry.Caller.File, "/")+1:],
+				entry.Caller.Line))
+		}
+		_, _ = buf.WriteString(": ")
 		_, _ = buf.WriteString(entry.Message)
 		_, _ = buf.WriteString(" \n")
 	}
