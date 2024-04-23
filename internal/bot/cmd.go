@@ -6,32 +6,36 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	StartCommand         = "/start"
+	HelpCommand          = "/help"
+	ListTextsCommand     = "/texts"
+	ListPhotosCommand    = "/photos"
+	ListVoicesCommand    = "/voices"
+	ListVideosCommand    = "/videos"
+	ListDocumentsCommand = "/docs"
+)
+
+var cmdFuncMap map[string]func(*CommandContext)
+
+type CommandContext struct {
+	Response *tgbotapi.MessageConfig
+	Message  *tgbotapi.Message
+	Basic    *BasicTGBot
+}
+
 func OnCommand(message *tgbotapi.Message, basic *BasicTGBot) {
 	msg := tgbotapi.NewMessage(message.Chat.ID, "")
+	context := &CommandContext{
+		Response: &msg,
+		Message:  message,
+		Basic:    basic,
+	}
 
-	switch message.Text {
-	case "/start":
-		{
-			msg.Text = "您好，我是防撤回机器人，您可将需要保存的 文本/图片/语音/视频/文件 转发至此机器人，机器人将会自动将文件存档到本地服务器。若原消息被撤回，则机器人会将存档文件重新上传至该聊天"
-			msg.ReplyMarkup = replyKeyboard
-			break
-		}
-	case "/photos":
-		{
-			ListRecord(1, string(model.Photo), message.Chat.ID, message.From.ID, basic)
-			break
-		}
-	case "/help":
-		{
-			msg.Text = `帮助菜单
-			- /start 初始化聊天
-			- /help 获取本菜单`
-			break
-		}
-	default:
-		{
-			msg.Text = "未知的命令: " + message.Text
-		}
+	if cmdFunc, ok := cmdFuncMap[message.Text]; ok {
+		cmdFunc(context)
+	} else {
+		msg.Text = "未知的命令: " + message.Text
 	}
 
 	if _, err := basic.API.Send(msg); err != nil {
@@ -39,6 +43,17 @@ func OnCommand(message *tgbotapi.Message, basic *BasicTGBot) {
 	}
 }
 
-func onPhotos() {
+func onStart(context *CommandContext) {
+	context.Response.Text = "您好，我是防撤回机器人，您可将需要保存的 文本/图片/语音/视频/文件 转发给我，我会自动将文件存档到本地。即使被撤回，存档文件也可重新被查阅"
+	context.Response.ReplyMarkup = mainReplyKeyboard
+}
 
+func onHelp(context *CommandContext) {
+	context.Response.Text = "帮助菜单"
+	context.Response.ReplyMarkup = mainReplyKeyboard
+}
+
+func onListMedia(fileType model.FileType, context *CommandContext) {
+	// 如果是 callback 进来，机器人会引用自身消息回复，此处 userID != FromID
+	ListRecord(1, string(fileType), context.Message.Chat.ID, context.Message.Chat.ID, context.Basic)
 }

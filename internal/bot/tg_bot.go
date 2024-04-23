@@ -33,7 +33,7 @@ func NewBasicTGBot(token string, endpoint string, debug bool) *BasicTGBot {
 func (b *BasicTGBot) Send(chattable tgbotapi.Chattable) {
 	_, err := b.API.Send(chattable)
 	if err != nil {
-		log.Println(err)
+		log.Info(err)
 	}
 }
 
