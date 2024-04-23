@@ -1,14 +1,18 @@
 package bot
 
 import (
+	"fmt"
+	"github.com/IUnlimit/telegram-bot-disrecall/internal/cache"
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 const (
 	StartCommand         = "/start"
 	HelpCommand          = "/help"
+	StaticCommand        = "/static"
 	ListTextsCommand     = "/texts"
 	ListPhotosCommand    = "/photos"
 	ListVoicesCommand    = "/voices"
@@ -50,6 +54,24 @@ func onStart(context *CommandContext) {
 
 func onHelp(context *CommandContext) {
 	context.Response.Text = "帮助菜单"
+	context.Response.ReplyMarkup = mainReplyKeyboard
+}
+
+func onStatic(context *CommandContext) {
+	staticMap := cache.GetUserStatic(context.Message.Chat.ID)
+	var builder strings.Builder
+	builder.WriteString("用户 @")
+	builder.WriteString(context.Message.Chat.UserName)
+	builder.WriteString("\n")
+	for fileType, static := range staticMap {
+		builder.WriteString("- ")
+		builder.WriteString(string(fileType))
+		builder.WriteString(": 共计 ")
+		builder.WriteString(fmt.Sprintf("%.2f MB", static.MB))
+		builder.WriteString(fmt.Sprintf("(%d 条)\n", static.Rows))
+	}
+	context.Response.Text = builder.String()
+	context.Response.ParseMode = "Markdown"
 	context.Response.ReplyMarkup = mainReplyKeyboard
 }
 

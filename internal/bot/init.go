@@ -11,42 +11,39 @@ func Init() {
 	supportTypes = map[string]func(tgbotapi.RequestFileData, *model.FileModel) interface{}{
 		string(model.Text): func(_ tgbotapi.RequestFileData, fileModel *model.FileModel) interface{} {
 			text := tgbotapi.NewMessage(0, fileModel.Text)
-			// TODO fix message.Entities 无法生效
+			// TODO fix message.Entities, media.CaptionEntities 无法生效
 			return &text
 		},
 		string(model.Photo): func(file tgbotapi.RequestFileData, fileModel *model.FileModel) interface{} {
 			media := tgbotapi.NewInputMediaPhoto(file)
 			message := fileModel.Json.Data()
 			media.Caption = message.Caption
-			media.CaptionEntities = message.CaptionEntities
 			return &media
 		},
 		string(model.Voice): func(file tgbotapi.RequestFileData, fileModel *model.FileModel) interface{} {
 			media := tgbotapi.NewInputMediaAudio(file)
 			message := fileModel.Json.Data()
 			media.Caption = message.Caption
-			media.CaptionEntities = message.CaptionEntities
 			return &media
 		},
 		string(model.Video): func(file tgbotapi.RequestFileData, fileModel *model.FileModel) interface{} {
 			media := tgbotapi.NewInputMediaVideo(file)
 			message := fileModel.Json.Data()
 			media.Caption = message.Caption
-			media.CaptionEntities = message.CaptionEntities
 			return &media
 		},
 		string(model.Document): func(file tgbotapi.RequestFileData, fileModel *model.FileModel) interface{} {
 			media := tgbotapi.NewInputMediaDocument(file)
 			message := fileModel.Json.Data()
 			media.Caption = message.Caption
-			media.CaptionEntities = message.CaptionEntities
 			return &media
 		},
 	}
 
 	cmdFuncMap = map[string]func(context *CommandContext){
-		StartCommand: onStart,
-		HelpCommand:  onHelp,
+		StartCommand:  onStart,
+		HelpCommand:   onHelp,
+		StaticCommand: onStatic,
 		ListTextsCommand: func(c *CommandContext) {
 			onListMedia(model.Text, c)
 		},
@@ -64,7 +61,6 @@ func Init() {
 		},
 	}
 
-	// TODO 支持查看统计数据
 	// TODO 支持删除记录
 	mainReplyKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -79,7 +75,7 @@ func Init() {
 			tgbotapi.NewInlineKeyboardButtonData("查看文件存档", ListDocumentsCommand),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("帮助菜单", HelpCommand),
+			tgbotapi.NewInlineKeyboardButtonData("统计数据", StaticCommand),
 		),
 	)
 }
