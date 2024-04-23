@@ -1,8 +1,8 @@
 package disrecall
 
 import (
-	"encoding/json"
 	"fmt"
+	"gorm.io/datatypes"
 	"sync/atomic"
 	"time"
 
@@ -17,7 +17,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-// 不支持 Channel 消息, 仅私聊可用
+// Listen 不支持 Channel 消息, 仅私聊可用
 func Listen() {
 	config := global.Config.TelegramBot
 	basicBot := bot.NewBasicTGBot(config.Token, config.Endpoint, config.Debug)
@@ -58,6 +58,12 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 		return
 	}
 
+	// input capture
+	if channel, ok := bot.InputChanMap[update.Message.Chat.ID]; ok {
+		channel <- update.Message.Text
+		return
+	}
+
 	if update.Message.IsCommand() {
 		bot.OnCommand(update.Message, basic)
 		return
@@ -71,38 +77,29 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 	}
 
 	message := update.Message
-	bytes, err := json.Marshal(&message)
-	if err != nil {
-		log.Errorf("Message(id: %d) marshall failed: %v", message.MessageID, err)
-		return
-	}
-
 	fileModel := &model.FileModel{
 		Model: gorm.Model{
 			CreatedAt: time.Unix(int64(message.Date), 0),
 		},
-		MessageID:       int64(message.MessageID),
-		ForwardUserID:   message.From.ID,
-		ForwardDate:     int64(message.ForwardDate),
-		ForwardUserName: message.From.UserName,
-		Text:            message.Text,
-		Caption:         message.Caption,
-		Json:            string(bytes),
+		MessageID:   int64(message.MessageID),
+		UserID:      message.From.ID,
+		ForwardDate: int64(message.ForwardDate),
+		UserName:    message.From.UserName,
+		Text:        message.Text,
+		Json:        datatypes.NewJSONType(message),
 	}
 
-	fileID, fileType := FindFileIDWithType(message)
+	fileID, fileType := findFileIDWithType(message)
 	if fileType == "" {
-		if message.Text == "" {
-			basic.SendMessage("当前消息类型不支持储存!", message)
-			return
-		}
-		fileType = model.Text
-		fileModel.Text = message.Text
+		basic.SendMessage("当前消息类型不支持储存!", message)
+		return
 	}
 
 	go func(message *tgbotapi.Message, fileModel *model.FileModel) {
-
-		if fileType != model.Text {
+		if fileType == model.Text {
+			fileModel.FileType = fileType
+			fileModel.Text = message.Text
+		} else {
 			basic.DownloadFile(fileID, message, func(filePath string, fileSize int64) {
 				fileModel.FilePath = filePath
 				fileModel.FileType = fileType
@@ -111,7 +108,7 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 			})
 		}
 
-		err = db.Insert(fileModel)
+		err := db.Insert(fileModel)
 		if err != nil {
 			log.Errorf("Database insert error: %v", err)
 			return
@@ -122,7 +119,7 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 	}(message, fileModel)
 }
 
-func FindFileIDWithType(message *tgbotapi.Message) (string, model.FileType) {
+func findFileIDWithType(message *tgbotapi.Message) (string, model.FileType) {
 	if message.Photo != nil {
 		photo := (message.Photo)[len(message.Photo)-1]
 		return photo.FileID, model.Photo
@@ -134,6 +131,8 @@ func FindFileIDWithType(message *tgbotapi.Message) (string, model.FileType) {
 		return message.Video.FileID, model.Video
 	} else if message.Document != nil {
 		return message.Document.FileID, model.Document
+	} else if message.Text != "" {
+		return "", model.Text
 	}
 	return "", ""
 }
