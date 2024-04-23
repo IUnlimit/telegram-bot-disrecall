@@ -13,15 +13,18 @@ var cacheMap map[int64][]*model.FileModel
 func Init() {
 	timer := cron.New(cron.WithSeconds())
 	updateLocalCache()
-	timer.AddFunc("@every 5m", func() {
+	_, err := timer.AddFunc("@every 5m", func() {
 		// TODO 没有插入记录的不刷新
 		updateLocalCache()
 	})
+	if err != nil {
+		log.Fatalf("Creat cron task error: %v", err)
+	}
 	timer.Start()
 }
 
 func updateLocalCache() {
-	cacheMap = make(map[int64][]*model.FileModel, 0)
+	newCacheMap := make(map[int64][]*model.FileModel, 0)
 	fileModels, err := db.QueryAll()
 	if err != nil {
 		log.Fatalf("Initial cache data failed: %v", err)
@@ -29,14 +32,15 @@ func updateLocalCache() {
 
 	var rows int
 	for _, fileModel := range fileModels {
-		if _, ok := cacheMap[fileModel.ForwardUserID]; !ok {
-			cacheMap[fileModel.ForwardUserID] = make([]*model.FileModel, 0)
+		if _, ok := newCacheMap[fileModel.UserID]; !ok {
+			newCacheMap[fileModel.UserID] = make([]*model.FileModel, 0)
 		}
 		if !fileModel.IsValid() {
 			continue
 		}
-		cacheMap[fileModel.ForwardUserID] = append(cacheMap[fileModel.ForwardUserID], fileModel)
+		newCacheMap[fileModel.UserID] = append(newCacheMap[fileModel.UserID], fileModel)
 		rows++
 	}
+	cacheMap = newCacheMap
 	log.Debugf("Update %d valid records", rows)
 }
