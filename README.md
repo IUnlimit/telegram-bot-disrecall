@@ -45,6 +45,13 @@
 
 机器人在检测到[支持类型](#支持归档的消息类型)的转发消息后，会自动将文件下载到本地目录或保存到数据库（文本类型）。如果在查看归档记录时检测到文件ID失效，机器人会重新上传文件以实现防撤回的效果。
 
+### 部署
+
+1. 下载 [Release](https://github.com/IUnlimit/telegram-bot-disrecall/releases)
+2. 通过 BotFather 创建你自己的机器人密匙（token）
+3. 将 `token` 填入配置项 [`telegram-bot.token`](./configs/config.yml#L24)
+4. 启动程序
+
 ### 配置文件
 
 [config.yml](./configs/config.yml)
