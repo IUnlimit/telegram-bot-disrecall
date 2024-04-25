@@ -19,28 +19,27 @@
 - [x] 文件
 
 ### 功能展示
-
 - 初始化
     
-  ![start](./assets/start.jpg)
+  <img src="./assets/start.jpg" width="400" />
 
 - 记录转发
 
-  ![forward](./assets/forward.jpg)
+  <img src="./assets/forward.jpg" width="400" />
 
 - 查看归档数据（以 文本 类型记录为例）
 
-  ![show](./assets/show.jpg)
+  <img src="./assets/show.jpg" width="400" />
     
   下方按钮从左到右依次为：上一页、帮助菜单、页面跳转（显示当前页）、下一页
 
 - 查看统计数据
 
-  ![static](./assets/static.jpg)
+  <img src="./assets/static.jpg" width="400" />
 
 - 鉴权
 
-  ![auth](./assets/auth.jpg)
+  <img src="./assets/auth.jpg" width="400" />
 
 ### 工作原理
 
