@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// InputChanMap chatID: chan
 var InputChanMap map[int64]chan string
 
 var supportTypes map[string]func(tgbotapi.RequestFileData, *model.FileModel) interface{}

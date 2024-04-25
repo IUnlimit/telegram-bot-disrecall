@@ -25,7 +25,7 @@ func Init() {
 
 func updateLocalCache() {
 	newCacheMap := make(map[int64][]*model.FileModel, 0)
-	fileModels, err := db.QueryAll()
+	fileModels, err := db.QueryAllFile()
 	if err != nil {
 		log.Fatalf("Initial cache data failed: %v", err)
 	}
