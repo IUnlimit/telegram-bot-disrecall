@@ -48,6 +48,15 @@ func OnCommand(message *tgbotapi.Message, basic *BasicTGBot) {
 }
 
 func onStart(context *CommandContext) {
+	context.Basic.Send(tgbotapi.NewSetMyCommands(
+		tgbotapi.BotCommand{
+			Command:     "start",
+			Description: "初始化机器人",
+		},
+		tgbotapi.BotCommand{
+			Command:     "help",
+			Description: "查看帮助",
+		}))
 	context.Response.Text = "您好，我是防撤回机器人，您可将需要保存的 文本/图片/语音/视频/文件 转发给我，我会自动将文件存档到本地。即使被撤回，存档文件也可重新被查阅"
 	context.Response.ReplyMarkup = mainReplyKeyboard
 }
