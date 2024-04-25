@@ -18,7 +18,14 @@ func Init() {
 	if err != nil {
 		log.Panicf("Failed to connect database(dsn: %s)", dsn)
 	}
-	db.AutoMigrate(&model.FileModel{})
+	err = db.AutoMigrate(&model.FileModel{})
+	if err != nil {
+		log.Panicf("FileModel autoMigrate failed: %v", err)
+	}
+	err = db.AutoMigrate(&model.UserModel{})
+	if err != nil {
+		log.Panicf("UserModel autoMigrate failed: %v", err)
+	}
 	Instance = db
 	log.Infof("Initialization of database (dsn: %s) successful", dsn)
 }

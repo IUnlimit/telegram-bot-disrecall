@@ -22,26 +22,6 @@ const (
 	Document FileType = "Document"
 )
 
-func (ft FileType) Value() (driver.Value, error) {
-	return string(ft), nil
-}
-
-// Scan 实现 sql.Scanner 接口，从数据库读取值并将其转换回 FileType
-func (ft *FileType) Scan(value interface{}) error {
-	if value == nil {
-		*ft = ""
-		return nil
-	}
-
-	dbValue, ok := value.(string)
-	if !ok {
-		return errors.New("invalid file type value from database")
-	}
-
-	*ft = FileType(dbValue)
-	return nil
-}
-
 type FileModel struct {
 	gorm.Model
 	// 转发消息的 ID
@@ -65,6 +45,32 @@ type FileModel struct {
 	FileSize int64 `gorm:"default:0"`
 	// 文件ID
 	FileID string `gorm:"default:''"`
+}
+
+// UserModel 授权用户记录
+type UserModel struct {
+	gorm.Model
+	UserID int64
+}
+
+func (ft FileType) Value() (driver.Value, error) {
+	return string(ft), nil
+}
+
+// Scan 实现 sql.Scanner 接口，从数据库读取值并将其转换回 FileType
+func (ft *FileType) Scan(value interface{}) error {
+	if value == nil {
+		*ft = ""
+		return nil
+	}
+
+	dbValue, ok := value.(string)
+	if !ok {
+		return errors.New("invalid file type value from database")
+	}
+
+	*ft = FileType(dbValue)
+	return nil
 }
 
 func (m *FileModel) IsValid() bool {
