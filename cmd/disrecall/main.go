@@ -64,6 +64,11 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 		return
 	}
 
+	// user auth
+	if !bot.UserAuth(update.Message.Chat.ID, basic) {
+		return
+	}
+
 	if update.Message.IsCommand() {
 		bot.OnCommand(update.Message, basic)
 		return
@@ -108,7 +113,7 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 			})
 		}
 
-		err := db.Insert(fileModel)
+		err := db.InsertFile(fileModel)
 		if err != nil {
 			log.Errorf("Database insert error: %v", err)
 			return

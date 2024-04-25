@@ -10,15 +10,11 @@ log:
   # 是否开启控制台颜色
   colorful: true
 
-# API 配置
-api:
-  # 监听地址
-  host: "0.0.0.0"
-  # 绑定端口
-  port: 8080
-
 # 存储下载文件的根路径
 root-dir: './files'
+# 验证密匙
+#   若配置则在使用机器人前需要先输入该密匙
+authorization: ''
 
 # Telegram Bot 配置
 telegram-bot:
