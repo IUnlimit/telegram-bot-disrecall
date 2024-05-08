@@ -65,9 +65,10 @@ func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, call
 
 	// 判断是否为本地服务器
 	if strings.HasPrefix(file.FilePath, "/") {
-		// 绝对路径要去 token
-		b.SendMessage(fmt.Sprintf("文件被本地服务器成功保存到: %s", replaceToken(file.FilePath)), message)
-		callback(file.FilePath, int64(file.FileSize))
+		// 将绝对路径转换为相对路径
+		index := strings.Index(file.FilePath, b.API.Token)
+		file.FilePath = fmt.Sprintf(".%s", file.FilePath[index+len(b.API.Token):])
+		// TODO move file if local mode
 		return
 	}
 
@@ -78,6 +79,10 @@ func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, call
 	filePath := fmt.Sprintf("%s/%s/%d/%s", rootDir, date, fromUserID, file.FilePath)
 	log.Debugf("FileDirectURL: %s", fileDirectURL)
 
+	// 替换文件名 file_11.jpg -> <id>.jpg
+	re := regexp.MustCompile(`([^/]+)\.([^.]+)$`)
+	filePath = re.ReplaceAllString(filePath, file.FileUniqueID+".$2")
+
 	// 下载文件
 	filePath, err = tool.DownloadFile(fileDirectURL, filePath)
 	if err != nil {
@@ -86,12 +91,7 @@ func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, call
 		return
 	}
 
-	log.Infof("File %s download success", filePath)
+	log.Infof("File successfully download to '%s'", filePath)
 	b.SendMessage(fmt.Sprintf("文件成功下载到: %s", filePath), message)
 	callback(filePath, int64(file.FileSize))
-}
-
-func replaceToken(path string) string {
-	re := regexp.MustCompile(`/\d+:[^/]+/`)
-	return re.ReplaceAllString(path, "/<token>/")
 }

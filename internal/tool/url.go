@@ -20,7 +20,7 @@ func DownloadFile(url string, path string) (string, error) {
 
 	// 判断文件是否存在
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		log.Debug("检测到重复文件, 自动增加文件后缀")
+		log.Debug("Duplicate files are detected and the file suffix is automatically added")
 		return DownloadFile(url, path+".rp")
 	}
 
