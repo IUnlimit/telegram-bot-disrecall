@@ -12,9 +12,29 @@ log:
 
 # 存储下载文件的根路径
 root-dir: './files'
+
 # 验证密匙
 #   若配置则在使用机器人前需要先输入该密匙
 authorization: ''
+
+# 自建 telegram-bot-api 相关配置
+#   如果使用官方 API, 则可忽略此配置项
+# 注意：当使用自建 API 时，请确保机器人能访问到自建 API 的文件储存路径
+# （自建 API 无法通过 url 下载文件，只能通过文件路径进行访问）
+self-api:
+  # 自建 telegram-bot-api 的储存根路径
+  #   如 官方 API 返回的 file_path 为 photos/file_0
+  #   自建 API 返回的 file_path 为 /var/lib/telegram-bot-api/<botToken>/photos/file_0
+  #   则需配置为 /var/lib/telegram-bot-api
+  root-dir: ''
+  # 自建 telegram-bot-api 的真实储存根路径
+  #   如果自建 API 运行在 docker 中，请将此路径配置为 volumes 映射的路径
+  #   如：- type: bind
+  #         source: /home/illtamer/Downloads/telegram-bot-api-data
+  #         target: /var/lib/telegram-bot-api
+  #   则需配置为 /home/illtamer/Downloads/telegram-bot-api-data
+  #   本配置项默认与 root-dir 同值
+  real-root-dir: ''
 
 # Telegram Bot 配置
 telegram-bot:
