@@ -24,7 +24,6 @@ func DownloadFile(url string, path string) (string, error) {
 		return DownloadFile(url, path+".rp")
 	}
 
-	// 获取文件所在目录的路径
 	dir := filepath.Dir(path)
 	err = os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
@@ -42,4 +41,30 @@ func DownloadFile(url string, path string) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+func CopyFile(src string, target string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	dir := filepath.Dir(target)
+	err = os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	destFile, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+	return nil
 }

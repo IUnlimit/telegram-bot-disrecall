@@ -54,7 +54,6 @@ func (b *BasicTGBot) SendCallback(text string, callback *tgbotapi.CallbackQuery)
 }
 
 func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, callback func(filePath string, fileSize int64)) {
-	// 获取文件信息
 	fileConfig := tgbotapi.FileConfig{FileID: fileID}
 	// TODO 文件过大时 http 超时, 无法获取 Info ?
 	file, err := b.API.GetFile(fileConfig)
@@ -63,27 +62,37 @@ func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, call
 		return
 	}
 
-	// 判断是否为本地服务器
+	rootDir := global.Config.RootDir
+	date := time.Now().Format("2006-01-02")
+	fromUserID := message.From.ID
+
+	// if local bot api server
 	if strings.HasPrefix(file.FilePath, "/") {
-		// 将绝对路径转换为相对路径
-		index := strings.Index(file.FilePath, b.API.Token)
-		file.FilePath = fmt.Sprintf(".%s", file.FilePath[index+len(b.API.Token):])
-		// TODO move file if local mode
+		log.Debugf("Received file from local server: %s", file.FilePath)
+		selfAPIConfig := global.Config.SelfAPI
+		// 将映射路径转换为真实绝对路径
+		filePath := strings.Replace(file.FilePath, selfAPIConfig.RootDir, selfAPIConfig.RealRootDir, 1)
+		// 构造相对路径, 防呆
+		copyRelativePath := strings.Replace(file.FilePath, selfAPIConfig.RootDir, "./", 1)
+		copyRelativePath = strings.Replace(copyRelativePath, b.API.Token, "", 1)
+		copyPath := generateFileName(fmt.Sprintf("%s/%s/%d/%s", rootDir, date, fromUserID, copyRelativePath), file.FileUniqueID)
+
+		err = tool.CopyFile(filePath, copyPath)
+		if err != nil {
+			log.Errorf("Copy file from '%s' to '%s' failed: %v", filePath, copyPath, err)
+			return
+		}
+
+		log.Infof("File successfully copied to '%s'", copyPath)
+		b.SendMessage(fmt.Sprintf("文件成功拷贝到: %s", copyPath), message)
+		callback(copyPath, int64(file.FileSize))
 		return
 	}
 
 	fileDirectURL := file.Link(b.API.Token)
-	rootDir := global.Config.RootDir
-	date := time.Now().Format("2006-01-02")
-	fromUserID := message.From.ID
-	filePath := fmt.Sprintf("%s/%s/%d/%s", rootDir, date, fromUserID, file.FilePath)
+	filePath := generateFileName(fmt.Sprintf("%s/%s/%d/%s", rootDir, date, fromUserID, file.FilePath), file.FileUniqueID)
 	log.Debugf("FileDirectURL: %s", fileDirectURL)
 
-	// 替换文件名 file_11.jpg -> <id>.jpg
-	re := regexp.MustCompile(`([^/]+)\.([^.]+)$`)
-	filePath = re.ReplaceAllString(filePath, file.FileUniqueID+".$2")
-
-	// 下载文件
 	filePath, err = tool.DownloadFile(fileDirectURL, filePath)
 	if err != nil {
 		log.Errorf("File %s download failed: %v", fileDirectURL, err)
@@ -94,4 +103,26 @@ func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, call
 	log.Infof("File successfully download to '%s'", filePath)
 	b.SendMessage(fmt.Sprintf("文件成功下载到: %s", filePath), message)
 	callback(filePath, int64(file.FileSize))
+}
+
+func generateFileName(path string, fileUID string) string {
+	// 定义正则表达式，匹配文件名
+	re := regexp.MustCompile(`(.*)(file_\d+)(\..*)?$`)
+	if re.NumSubexp() != 3 {
+		log.Errorf("Can't match path '%s' with regexp: %s", path, re.String())
+		return path
+	}
+	// fileName -> fileUID
+	result := re.ReplaceAllString(path, "${1}"+fileUID+"$3")
+	// 没有后缀
+	if re.FindStringSubmatch(path)[3] == "" {
+		if strings.Contains(path, "photos/") {
+			result += ".jpg"
+		} else if strings.Contains(path, "videos/") {
+			result += ".mp4"
+		} else {
+			log.Warnf("Unknown file type with path: %s", path)
+		}
+	}
+	return result
 }
