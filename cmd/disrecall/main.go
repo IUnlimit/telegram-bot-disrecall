@@ -39,12 +39,12 @@ func Listen() {
 		current := int32(0)
 		size := len(updates)
 		for _, up := range updates {
-			go func(update *tgbotapi.Update, config *tgbotapi.UpdateConfig) {
-				if update.UpdateID >= config.Offset {
-					config.Offset = update.UpdateID + 1
-					handle(&current, size, basicBot, update)
-				}
-			}(&up, &u)
+			if up.UpdateID >= u.Offset {
+				u.Offset = up.UpdateID + 1
+				go func(update *tgbotapi.Update, bot *bot.BasicTGBot) {
+					handle(&current, size, bot, update)
+				}(&up, basicBot)
+			}
 		}
 	}
 }
@@ -88,77 +88,89 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 	if unique == "" {
 		unique = strconv.Itoa(message.ForwardDate)
 	}
-	fileModel := &model.FileModel{
-		Model: gorm.Model{
-			CreatedAt: time.Unix(int64(message.Date), 0),
-		},
-		MessageID:    int64(message.MessageID),
-		UserID:       message.From.ID,
-		ForwardDate:  int64(message.ForwardDate),
-		MediaGroupID: unique,
-		UserName:     message.From.UserName,
-		Text:         message.Text,
-		Json:         datatypes.NewJSONType(message),
-	}
 
-	fileID, fileType := findFileIDWithType(message)
-	if fileType == "" {
+	filePairs := findFileIDWithType(message)
+	if len(filePairs) == 0 {
 		basic.SendMessage("当前消息类型不支持储存!", message)
 		return
 	}
 
-	go func(message *tgbotapi.Message, fileModel *model.FileModel) {
-		var err error
-		if fileType == model.Text {
-			fileModel.FileType = fileType
-			fileModel.Text = message.Text
-		} else {
-			for i := 0; i < 3; i++ {
-				err = basic.DownloadFile(fileID, message, func(filePath string, fileSize int64) {
-					fileModel.FilePath = filePath
-					fileModel.FileType = fileType
-					fileModel.FileSize = fileSize
-					fileModel.FileID = fileID
-				})
-				if err == nil {
-					break
-				}
-				log.Errorf("Failed to download file with retry-%d: %v", i, err)
+	for _, filePair := range filePairs {
+		go func(message *tgbotapi.Message, filePair *model.Pair[string, model.FileType]) {
+			fileModel := &model.FileModel{
+				Model: gorm.Model{
+					CreatedAt: time.Unix(int64(message.Date), 0),
+				},
+				MessageID:    int64(message.MessageID),
+				UserID:       message.From.ID,
+				ForwardDate:  int64(message.ForwardDate),
+				MediaGroupID: unique,
+				UserName:     message.From.UserName,
+				Text:         message.Text,
+				Json:         datatypes.NewJSONType(message),
 			}
-		}
 
-		if err != nil {
-			basic.SendMessage(fmt.Sprintf("Batch(%d): 消息下载失败 %v", message.ForwardDate, err), message)
-			return
-		}
+			var err error
+			fileID := filePair.Key
+			fileType := filePair.Value
 
-		err = db.InsertFile(fileModel)
-		if err != nil {
-			log.Errorf("Database insert error: %v", err)
-			basic.SendMessage(fmt.Sprintf("Batch(%d): 数据库录入失败 %v", message.ForwardDate, err), message)
-			return
-		}
+			if fileType == model.Text {
+				fileModel.FileType = fileType
+				fileModel.Text = message.Text
+			} else {
+				for i := 0; i < 3; i++ {
+					err = basic.DownloadFile(fileID, message, func(filePath string, fileSize int64) {
+						fileModel.FilePath = filePath
+						fileModel.FileType = fileType
+						fileModel.FileSize = fileSize
+						fileModel.FileID = fileID
+					})
+					if err == nil {
+						break
+					}
+					log.Errorf("Failed to download file with retry-%d: %v", i, err)
+				}
+			}
 
-		atomic.AddInt32(current, 1)
-		basic.SendMessage(fmt.Sprintf("Batch(%d): 消息已录入数据库 [%d/%d]", message.ForwardDate, *current, size), message)
-	}(message, fileModel)
+			if err != nil {
+				basic.SendMessage(fmt.Sprintf("Batch(%d): 消息下载失败 %v", message.ForwardDate, err), message)
+				return
+			}
+
+			err = db.InsertFile(fileModel)
+			if err != nil {
+				log.Errorf("Database insert error: %v", err)
+				basic.SendMessage(fmt.Sprintf("Batch(%d): 数据库录入失败 %v", message.ForwardDate, err), message)
+				return
+			}
+
+			atomic.AddInt32(current, 1)
+			basic.SendMessage(fmt.Sprintf("Batch(%d): 消息已录入数据库 [%d/%d]", message.ForwardDate, *current, size), message)
+		}(message, filePair)
+	}
 }
 
 // TODO support multiple photos
-func findFileIDWithType(message *tgbotapi.Message) (string, model.FileType) {
-	if message.Photo != nil {
-		photo := (message.Photo)[len(message.Photo)-1]
-		return photo.FileID, model.Photo
-	}
+func findFileIDWithType(message *tgbotapi.Message) []*model.Pair[string, model.FileType] {
+	filePairs := make([]*model.Pair[string, model.FileType], 0)
 
-	if message.Voice != nil {
-		return message.Voice.FileID, model.Voice
+	if message.Photo != nil && len(message.Photo) > 0 {
+		// the same photo with diff size
+		maxPhoto := message.Photo[0]
+		for _, photo := range message.Photo {
+			if photo.FileSize > maxPhoto.FileSize {
+				maxPhoto = photo
+			}
+		}
+		filePairs = append(filePairs, model.NewPair(maxPhoto.FileID, model.Photo))
+	} else if message.Voice != nil {
+		filePairs = append(filePairs, model.NewPair(message.Voice.FileID, model.Voice))
 	} else if message.Video != nil {
-		return message.Video.FileID, model.Video
+		filePairs = append(filePairs, model.NewPair(message.Video.FileID, model.Video))
 	} else if message.Document != nil {
-		return message.Document.FileID, model.Document
+		filePairs = append(filePairs, model.NewPair(message.Document.FileID, model.Document))
 	} else if message.Text != "" {
-		return "", model.Text
+		filePairs = append(filePairs, model.NewPair("", model.Text))
 	}
-	return "", ""
+	return filePairs
 }

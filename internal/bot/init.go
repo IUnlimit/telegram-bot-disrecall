@@ -81,12 +81,8 @@ func Init() {
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("查看音频存档", ListVoicesCommand),
-			// TODO
-			tgbotapi.NewInlineKeyboardButtonData("查看消息存档", "/multiples"),
 			tgbotapi.NewInlineKeyboardButtonData("查看文件存档", ListDocumentsCommand),
-		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("查看媒体组存档", ListMediaGroupCommand),
+			tgbotapi.NewInlineKeyboardButtonData("查看消息存档", ListMediaGroupCommand),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("统计数据", StaticCommand),
