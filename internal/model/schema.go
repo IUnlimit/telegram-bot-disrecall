@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -15,23 +16,26 @@ type FileType string
 
 const (
 	// Text 纯文本
-	Text     FileType = "Text"
-	Photo    FileType = "Photo"
-	Voice    FileType = "Voice"
-	Video    FileType = "Video"
-	Document FileType = "Document"
+	Text       FileType = "Text"
+	Photo      FileType = "Photo"
+	Voice      FileType = "Voice"
+	Video      FileType = "Video"
+	Document   FileType = "Document"
+	MediaGroup FileType = "MediaGroup"
 )
 
 type FileModel struct {
 	gorm.Model
 	// 转发消息的 ID
 	MessageID int64 `gorm:"index"`
-	// 原消息发送时间 (同一 Date 的消息被认为是同一批消息)
+	// 原消息发送时间 (若不存在 MediaGroupID 则统一 ForwardDate 的消息被认为是同一批消息)
 	ForwardDate int64 `gorm:"not null"`
 	// 转发者 UserId
 	UserID int64 `gorm:"index"`
 	// 转发者 UserName
 	UserName string `gorm:"default:''"`
+	// 隶属的媒体组 MediaGroupID (同一 MediaGroupID 的消息被认为是同一批消息)
+	MediaGroupID string `gorm:"default:''"`
 	// 同一批次消息中由 From 用户发送的文本
 	Text string `gorm:"default:''"`
 	// 转发消息的原 json 格式数据

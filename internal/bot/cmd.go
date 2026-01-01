@@ -2,22 +2,24 @@ package bot
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/cache"
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	log "github.com/sirupsen/logrus"
-	"strings"
 )
 
 const (
-	StartCommand         = "/start"
-	HelpCommand          = "/help"
-	StaticCommand        = "/static"
-	ListTextsCommand     = "/texts"
-	ListPhotosCommand    = "/photos"
-	ListVoicesCommand    = "/voices"
-	ListVideosCommand    = "/videos"
-	ListDocumentsCommand = "/docs"
+	StartCommand          = "/start"
+	HelpCommand           = "/help"
+	StaticCommand         = "/static"
+	ListTextsCommand      = "/texts"
+	ListPhotosCommand     = "/photos"
+	ListVoicesCommand     = "/voices"
+	ListVideosCommand     = "/videos"
+	ListDocumentsCommand  = "/docs"
+	ListMediaGroupCommand = "/groups"
 )
 
 var cmdFuncMap map[string]func(*CommandContext)
@@ -40,6 +42,10 @@ func OnCommand(message *tgbotapi.Message, basic *BasicTGBot) {
 		cmdFunc(context)
 	} else {
 		msg.Text = "未知的命令: " + message.Text
+	}
+
+	if len(msg.Text) == 0 {
+		return
 	}
 
 	if _, err := basic.API.Send(msg); err != nil {

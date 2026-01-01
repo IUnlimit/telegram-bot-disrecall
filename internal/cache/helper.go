@@ -11,6 +11,12 @@ func GetTypeList(fileType model.FileType, userID int64) []*model.FileModel {
 	if _, ok := cacheMap[userID]; !ok {
 		return EmptyList
 	}
+
+	// MediaGroup 全返回
+	if fileType == model.MediaGroup {
+		return cacheMap[userID]
+	}
+
 	list := make([]*model.FileModel, 0)
 	for _, fileModel := range cacheMap[userID] {
 		if fileModel.FileType == fileType {

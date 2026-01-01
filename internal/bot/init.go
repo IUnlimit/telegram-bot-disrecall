@@ -3,6 +3,7 @@ package bot
 import (
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 func Init() {
@@ -38,6 +39,13 @@ func Init() {
 			media.Caption = message.Caption
 			return &media
 		},
+		string(model.MediaGroup): func(file tgbotapi.RequestFileData, fileModel *model.FileModel) interface{} {
+			if fileModel.FileType == model.MediaGroup {
+				log.Warnf("Dumplicate MediaGroup type in message group: %s", fileModel.MediaGroupID)
+				return nil
+			}
+			return supportTypes[string(fileModel.FileType)](file, fileModel)
+		},
 	}
 
 	cmdFuncMap = map[string]func(context *CommandContext){
@@ -59,6 +67,9 @@ func Init() {
 		ListDocumentsCommand: func(c *CommandContext) {
 			onListMedia(model.Document, c)
 		},
+		ListMediaGroupCommand: func(c *CommandContext) {
+			onListMedia(model.MediaGroup, c)
+		},
 	}
 
 	// TODO 支持删除记录
@@ -73,6 +84,9 @@ func Init() {
 			// TODO
 			tgbotapi.NewInlineKeyboardButtonData("查看消息存档", "/multiples"),
 			tgbotapi.NewInlineKeyboardButtonData("查看文件存档", ListDocumentsCommand),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("查看媒体组存档", ListMediaGroupCommand),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("统计数据", StaticCommand),

@@ -8,6 +8,7 @@ import (
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/cache"
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/kylelemons/godebug/pretty"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -76,6 +77,10 @@ func ListRecord(current int, modelTypeStr string, chatID int64, userID int64, bo
 		}
 		// return &
 		media := generateFunc(tgbotapi.FileID(fileModel.FileID), fileModel)
+		if media == nil {
+			log.Warnf("Nil generated media with fileModel: %s", pretty.Sprint(fileModel))
+			continue
+		}
 		files = append(files, media)
 		current++
 	}
