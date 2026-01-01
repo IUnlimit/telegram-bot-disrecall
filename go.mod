@@ -6,6 +6,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/robfig/cron/v3 v3.0.0
+	gorm.io/datatypes v1.2.0
 	gorm.io/driver/sqlite v1.5.5
 	gorm.io/gorm v1.25.9
 )
@@ -17,7 +18,6 @@ require (
 	github.com/jonboulle/clockwork v0.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
-	gorm.io/datatypes v1.2.0 // indirect
 	gorm.io/driver/mysql v1.4.7 // indirect
 )
 

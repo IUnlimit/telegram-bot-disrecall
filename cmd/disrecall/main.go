@@ -2,9 +2,11 @@ package disrecall
 
 import (
 	"fmt"
-	"gorm.io/datatypes"
+	"strconv"
 	"sync/atomic"
 	"time"
+
+	"gorm.io/datatypes"
 
 	"github.com/kylelemons/godebug/pretty"
 	log "github.com/sirupsen/logrus"
@@ -82,16 +84,21 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 	}
 
 	message := update.Message
+	unique := message.MediaGroupID
+	if unique == "" {
+		unique = strconv.Itoa(message.ForwardDate)
+	}
 	fileModel := &model.FileModel{
 		Model: gorm.Model{
 			CreatedAt: time.Unix(int64(message.Date), 0),
 		},
-		MessageID:   int64(message.MessageID),
-		UserID:      message.From.ID,
-		ForwardDate: int64(message.ForwardDate),
-		UserName:    message.From.UserName,
-		Text:        message.Text,
-		Json:        datatypes.NewJSONType(message),
+		MessageID:    int64(message.MessageID),
+		UserID:       message.From.ID,
+		ForwardDate:  int64(message.ForwardDate),
+		MediaGroupID: unique,
+		UserName:     message.From.UserName,
+		Text:         message.Text,
+		Json:         datatypes.NewJSONType(message),
 	}
 
 	fileID, fileType := findFileIDWithType(message)
@@ -101,21 +108,34 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 	}
 
 	go func(message *tgbotapi.Message, fileModel *model.FileModel) {
+		var err error
 		if fileType == model.Text {
 			fileModel.FileType = fileType
 			fileModel.Text = message.Text
 		} else {
-			basic.DownloadFile(fileID, message, func(filePath string, fileSize int64) {
-				fileModel.FilePath = filePath
-				fileModel.FileType = fileType
-				fileModel.FileSize = fileSize
-				fileModel.FileID = fileID
-			})
+			for i := 0; i < 3; i++ {
+				err = basic.DownloadFile(fileID, message, func(filePath string, fileSize int64) {
+					fileModel.FilePath = filePath
+					fileModel.FileType = fileType
+					fileModel.FileSize = fileSize
+					fileModel.FileID = fileID
+				})
+				if err == nil {
+					break
+				}
+				log.Errorf("Failed to download file with retry-%d: %v", i, err)
+			}
 		}
 
-		err := db.InsertFile(fileModel)
+		if err != nil {
+			basic.SendMessage(fmt.Sprintf("Batch(%d): 消息下载失败 %v", message.ForwardDate, err), message)
+			return
+		}
+
+		err = db.InsertFile(fileModel)
 		if err != nil {
 			log.Errorf("Database insert error: %v", err)
+			basic.SendMessage(fmt.Sprintf("Batch(%d): 数据库录入失败 %v", message.ForwardDate, err), message)
 			return
 		}
 
@@ -124,6 +144,7 @@ func handle(current *int32, size int, basic *bot.BasicTGBot, update *tgbotapi.Up
 	}(message, fileModel)
 }
 
+// TODO support multiple photos
 func findFileIDWithType(message *tgbotapi.Message) (string, model.FileType) {
 	if message.Photo != nil {
 		photo := (message.Photo)[len(message.Photo)-1]

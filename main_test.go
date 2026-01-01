@@ -1,6 +1,9 @@
 package main
 
 import (
+	"sync"
+	"testing"
+
 	global "github.com/IUnlimit/telegram-bot-disrecall/internal"
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/bot"
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/conf"
@@ -9,8 +12,6 @@ import (
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	log "github.com/sirupsen/logrus"
-	"sync"
-	"testing"
 )
 
 // go test -test.run TestMain
@@ -61,7 +62,7 @@ func updateDB() {
 }
 
 func testDownload(fileModel *model.FileModel, basic *bot.BasicTGBot) {
-	basic.DownloadFile(fileModel.FileID, fileModel.Json.Data(), func(filePath string, fileSize int64) {
+	_ = basic.DownloadFile(fileModel.FileID, fileModel.Json.Data(), func(filePath string, fileSize int64) {
 		fileModel.FilePath = filePath
 		db.Instance.Model(fileModel).Updates(model.FileModel{FileSize: fileSize, FilePath: filePath})
 	})

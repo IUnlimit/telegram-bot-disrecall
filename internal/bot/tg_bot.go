@@ -33,7 +33,7 @@ func NewBasicTGBot(token string, endpoint string, debug bool) *BasicTGBot {
 func (b *BasicTGBot) Send(chattable tgbotapi.Chattable) {
 	_, err := b.API.Send(chattable)
 	if err != nil {
-		log.Info(err)
+		log.Errorf("send message with error: %v", err)
 	}
 }
 
@@ -53,13 +53,12 @@ func (b *BasicTGBot) SendCallback(text string, callback *tgbotapi.CallbackQuery)
 	b.Send(msg)
 }
 
-func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, callback func(filePath string, fileSize int64)) {
+func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, callback func(filePath string, fileSize int64)) error {
 	fileConfig := tgbotapi.FileConfig{FileID: fileID}
 	// TODO 文件过大时 http 超时, 无法获取 Info ?
 	file, err := b.API.GetFile(fileConfig)
 	if err != nil {
-		log.Errorf("Fetch file info failed: %v", err)
-		return
+		return fmt.Errorf("fetch file info failed: %v", err)
 	}
 
 	rootDir := global.Config.RootDir
@@ -79,14 +78,13 @@ func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, call
 
 		err = tool.CopyFile(filePath, copyPath)
 		if err != nil {
-			log.Errorf("Copy file from '%s' to '%s' failed: %v", filePath, copyPath, err)
-			return
+			return fmt.Errorf("copy file from '%s' to '%s' failed: %v", filePath, copyPath, err)
 		}
 
 		log.Infof("File successfully copied to '%s'", copyPath)
 		b.SendMessage(fmt.Sprintf("文件成功拷贝到: %s", copyPath), message)
 		callback(copyPath, int64(file.FileSize))
-		return
+		return nil
 	}
 
 	fileDirectURL := file.Link(b.API.Token)
@@ -95,14 +93,14 @@ func (b *BasicTGBot) DownloadFile(fileID string, message *tgbotapi.Message, call
 
 	filePath, err = tool.DownloadFile(fileDirectURL, filePath)
 	if err != nil {
-		log.Errorf("File %s download failed: %v", fileDirectURL, err)
 		_ = os.Remove(filePath)
-		return
+		return fmt.Errorf("file %s download failed: %v", fileDirectURL, err)
 	}
 
 	log.Infof("File successfully download to '%s'", filePath)
 	b.SendMessage(fmt.Sprintf("文件成功下载到: %s", filePath), message)
 	callback(filePath, int64(file.FileSize))
+	return nil
 }
 
 func generateFileName(path string, fileUID string) string {

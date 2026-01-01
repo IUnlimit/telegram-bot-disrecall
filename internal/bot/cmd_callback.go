@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/cache"
 	"github.com/IUnlimit/telegram-bot-disrecall/internal/model"
@@ -66,13 +65,13 @@ func ListRecord(current int, modelTypeStr string, chatID int64, userID int64, bo
 
 	files := make([]interface{}, 0)
 
-	var batchForwardDate int64 = 0
+	var batchForwardMediaGroupID = ""
 	for i := index; i < len(list); i++ {
 		fileModel := list[i]
 		// 合并同时间 Media
-		if batchForwardDate == 0 {
-			batchForwardDate = fileModel.ForwardDate
-		} else if batchForwardDate != fileModel.ForwardDate {
+		if batchForwardMediaGroupID == "" {
+			batchForwardMediaGroupID = fileModel.MediaGroupID
+		} else if batchForwardMediaGroupID != fileModel.MediaGroupID {
 			break
 		}
 		// return &
@@ -91,9 +90,9 @@ func ListRecord(current int, modelTypeStr string, chatID int64, userID int64, bo
 	}
 	bot.Send(chattable)
 
-	msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("当前 [%s] 保存时间: %s\n\t——%s",
+	msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("当前 [%s] 保存id: %s\n\t——%s",
 		modelTypeStr,
-		time.Unix(batchForwardDate, 0).Format("2006-01-02 15:04:05"),
+		batchForwardMediaGroupID,
 		list[index].GetForwardFrom(),
 	))
 	// 上面 for 循环每一遍都加了偏移, 整体偏移多出1, 此处-1
