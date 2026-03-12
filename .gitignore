@@ -24,3 +24,5 @@ go.work
 files/
 config/
 output/
+.narrafork/
+.worktrees/
