@@ -1,0 +1,21 @@
+# 构建上下文瘦身：仅保留构建 Dockerfile 所需的 output/ 与 Dockerfile 本身
+.git
+.gitignore
+.narrafork/**
+.worktrees/**
+.idea/**
+config/**
+files/**
+configs/**
+cmd/**
+internal/**
+main.go
+main_test.go
+go.mod
+go.sum
+Makefile
+README.md
+README-en.md
+LICENSE
+assets/**
+.github/**

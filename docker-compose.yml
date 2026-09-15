@@ -1,0 +1,28 @@
+# 部署 telegram-bot-disrecall（仅机器人服务，自建 telegram-bot-api 运行在宿主机）
+# 使用: docker compose up -d --build
+# 首次启动后编辑 ./config/config.yml 填入 telegram-bot.token，然后 docker compose restart
+
+services:
+  disrecall:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: telegram-bot-disrecall:latest
+    container_name: telegram-bot-disrecall
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      # 配置目录：config.yml / sqlite.db / logs 均持久化在宿主机 ./config 下
+      - ./config:/app/config
+      # 归档文件目录（对应 config/config.yml 中的 root-dir: './files'）
+      - ./files:/app/files
+      # 自建 telegram-bot-api 的文件存储目录（config.yml 的 self-api.root-dir 所指路径）。
+      # 使用自建 API 时必须挂载：官方 API 走 URL 下载，而自建 API 只返回本地文件路径，
+      # 程序需要直接读取该目录下的文件，否则报 no such file or directory。
+      # 与宿主机保持同路径，因此 root-dir / real-root-dir 均填 /var/lib/telegram-bot-api 即可。
+      - /var/lib/telegram-bot-api:/var/lib/telegram-bot-api
+    environment:
+      - TZ=Asia/Shanghai
+    # 说明：config.yml 中 endpoint 使用 http://172.17.0.1:18081/bot%s/%s
+    # （172.17.0.1 为 docker0 网桥网关，容器内经此地址访问宿主自建 API）。
+    # 机器人只做出站轮询/下载，无需暴露入站端口。
